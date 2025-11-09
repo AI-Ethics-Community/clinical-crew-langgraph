@@ -67,3 +67,11 @@ tmp/
 temp/
 
 .langgraph_api
+
+# Knowledge bases and medical documents
+knowledge_bases/
+!knowledge_bases/README.md
+!knowledge_bases/*/README.md
+*.chroma
+*.faiss
+vector_stores/

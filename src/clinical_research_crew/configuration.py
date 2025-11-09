@@ -1,8 +1,8 @@
-"""Configuration management for the Open Deep Research system."""
+"""Configuration management for the Clinical Research Crew system."""
 
 import os
 from enum import Enum
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
@@ -36,7 +36,7 @@ class MCPConfig(BaseModel):
     """Whether the MCP server requires authentication"""
 
 class Configuration(BaseModel):
-    """Main configuration class for the Deep Research agent."""
+    """Main configuration class for the Clinical Research Crew agent."""
     
     # General Configuration
     max_structured_output_retries: int = Field(
@@ -57,7 +57,7 @@ class Configuration(BaseModel):
             "x_oap_ui_config": {
                 "type": "boolean",
                 "default": True,
-                "description": "Whether to allow the researcher to ask the user clarifying questions before starting research"
+                "description": "Whether to allow the general practitioner to ask the user clarifying questions before starting consultation"
             }
         }
     )
@@ -70,10 +70,155 @@ class Configuration(BaseModel):
                 "min": 1,
                 "max": 20,
                 "step": 1,
-                "description": "Maximum number of research units to run concurrently. This will allow the researcher to use multiple sub-agents to conduct research. Note: with more concurrency, you may run into rate limits."
+                "description": "Maximum number of specialists to consult concurrently. Note: with more concurrency, you may run into rate limits."
             }
         }
     )
+    
+    # Medical System Configuration
+    available_specialties: List[str] = Field(
+        default=[
+            "cardiology",
+            "pharmacology",
+            "neurology",
+            "emergency",
+            "gynecology",
+            "internal_medicine",
+            "surgery",
+            "nutrition",
+            "prevention",
+            "epidemiology"
+        ],
+        metadata={
+            "x_oap_ui_config": {
+                "type": "multiselect",
+                "description": "Medical specialties available for consultation",
+                "options": [
+                    {"label": "Cardiología", "value": "cardiology"},
+                    {"label": "Farmacología", "value": "pharmacology"},
+                    {"label": "Neurología", "value": "neurology"},
+                    {"label": "Urgencias", "value": "emergency"},
+                    {"label": "Ginecología", "value": "gynecology"},
+                    {"label": "Medicina Interna", "value": "internal_medicine"},
+                    {"label": "Cirugía", "value": "surgery"},
+                    {"label": "Nutrición", "value": "nutrition"},
+                    {"label": "Prevención", "value": "prevention"},
+                    {"label": "Epidemiología", "value": "epidemiology"}
+                ]
+            }
+        }
+    )
+    
+    rag_knowledge_base_path: str = Field(
+        default="./knowledge_bases",
+        metadata={
+            "x_oap_ui_config": {
+                "type": "text",
+                "default": "./knowledge_bases",
+                "description": "Path to the directory containing specialty-specific knowledge bases"
+            }
+        }
+    )
+    
+    enable_pubmed_search: bool = Field(
+        default=True,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "boolean",
+                "default": True,
+                "description": "Enable PubMed/MEDLINE search for medical literature"
+            }
+        }
+    )
+    
+    enable_clinical_calculators: bool = Field(
+        default=True,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "boolean",
+                "default": True,
+                "description": "Enable clinical calculators (GFR, BMI, CHADS2-VASc, etc.)"
+            }
+        }
+    )
+    
+    max_specialists_per_consultation: int = Field(
+        default=5,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "slider",
+                "default": 5,
+                "min": 1,
+                "max": 10,
+                "step": 1,
+                "description": "Maximum number of specialists to consult for a single clinical question"
+            }
+        }
+    )
+    
+    min_evidence_level: str = Field(
+        default="C",
+        metadata={
+            "x_oap_ui_config": {
+                "type": "select",
+                "default": "C",
+                "description": "Minimum evidence level required for recommendations (A=highest, C=lowest)",
+                "options": [
+                    {"label": "Level A (High quality evidence)", "value": "A"},
+                    {"label": "Level B (Moderate quality evidence)", "value": "B"},
+                    {"label": "Level C (Low quality evidence)", "value": "C"}
+                ]
+            }
+        }
+    )
+    
+    require_citations: bool = Field(
+        default=True,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "boolean",
+                "default": True,
+                "description": "Require specialists to cite evidence sources in their responses"
+            }
+        }
+    )
+    
+    general_practitioner_model: str = Field(
+        default="anthropic/claude-3-5-sonnet-20241022",
+        metadata={
+            "x_oap_ui_config": {
+                "type": "text",
+                "default": "anthropic/claude-3-5-sonnet-20241022",
+                "description": "Model for the General Practitioner coordinator agent"
+            }
+        }
+    )
+    
+    specialist_model: str = Field(
+        default="anthropic/claude-3-5-sonnet-20241022",
+        metadata={
+            "x_oap_ui_config": {
+                "type": "text",
+                "default": "anthropic/claude-3-5-sonnet-20241022",
+                "description": "Model for specialist agents"
+            }
+        }
+    )
+    
+    specialist_temperature: float = Field(
+        default=0.1,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "slider",
+                "default": 0.1,
+                "min": 0.0,
+                "max": 1.0,
+                "step": 0.1,
+                "description": "Temperature for specialist models (lower = more precise, higher = more creative)"
+            }
+        }
+    )
+    
     # Research Configuration
     search_api: SearchAPI = Field(
         default=SearchAPI.TAVILY,
@@ -100,7 +245,7 @@ class Configuration(BaseModel):
                 "min": 1,
                 "max": 10,
                 "step": 1,
-                "description": "Maximum number of research iterations for the Research Supervisor. This is the number of times the Research Supervisor will reflect on the research and ask follow-up questions."
+                "description": "Maximum number of consultation iterations for the General Practitioner. This is the number of times the GP will reflect and request additional specialist input."
             }
         }
     )
